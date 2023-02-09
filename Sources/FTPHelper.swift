@@ -1019,50 +1019,10 @@ internal extension FTPFileProvider {
     }
     
     func parseUnixList(_ text: String, in path: String) -> FileObject? {
-        let gregorian = Calendar(identifier: .gregorian)
-        let nearDateFormatter = DateFormatter()
-        nearDateFormatter.calendar = gregorian
-        nearDateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        nearDateFormatter.dateFormat = "MMM dd hh:mm yyyy"
-        let farDateFormatter = DateFormatter()
-        farDateFormatter.calendar = gregorian
-        farDateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        farDateFormatter.dateFormat = "MMM dd yyyy"
-        let thisYear = gregorian.component(.year, from: Date())
-        
-        let components = text.components(separatedBy: " ").compactMap { $0.isEmpty ? nil : $0 }
-        guard components.count >= 9 else { return nil }
-        let posixPermission = components[0]
-        let linksCount = Int(components[1]) ?? 0
-        //let owner = components[2]
-        //let groupOwner = components[3]
-        let size = Int64(components[4]) ?? -1
-        let date = components[5..<8].joined(separator: " ")
-        let name = components[8..<components.count].joined(separator: " ")
-        
+        let name = text
         guard name != "." && name != ".." else { return nil }
         let path = path.appendingPathComponent(name).replacingOccurrences(of: "/", with: "", options: .anchored)
-        
         let file = FileObject(url: url(of: path), name: name, path: "/" + path)
-        let typeChar = posixPermission.first ?? Character(" ")
-        switch String(typeChar) {
-        case "d": file.type = .directory
-        case "l": file.type = .symbolicLink
-        default:  file.type = .regular
-        }
-        file.isReadOnly = !posixPermission.contains("w")
-        file.size = file.isDirectory ? -1 : size
-        file.allValues[.linkCountKey] = linksCount
-        
-        if let parsedDate = nearDateFormatter.date(from: date + " " + String(thisYear)) {
-            if parsedDate > Date() {
-                file.modifiedDate = gregorian.date(byAdding: .year, value: -1, to: parsedDate)
-            } else {
-                file.modifiedDate = parsedDate
-            }
-        } else if let parsedDate = farDateFormatter.date(from: date) {
-            file.modifiedDate = parsedDate
-        }
         
         return file
     }
